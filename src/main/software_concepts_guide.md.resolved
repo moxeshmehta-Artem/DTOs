@@ -1,0 +1,188 @@
+# Backend Architecture & Concepts Guide
+
+This guide provides a detailed explanation of core backend software engineering concepts, focusing on Layered Architecture, the distinction between DTOs and Entities, Code Standards, and a complete end-to-end flow trace.
+
+---
+
+## 1. Layered Architecture
+
+Layered architecture organizes code into separate horizontal layers, where each layer has a specific responsibility and only interacts with the layers directly adjacent to it. This promotes **Separation of Concerns**, making the application easier to maintain, test, and scale.
+
+### The Standard Layers
+
+1.  **Presentation Layer (Controller)**
+    *   **Responsibility**: Handles HTTP requests and responses. It acts as the entry point for the application.
+    *   **What it does**:
+        *   Defines API endpoints (e.g., `POST /orders`).
+        *   Validates input format (e.g., "is email valid?").
+        *   Delegates business logic to the *Service Layer*.
+        *   Returns data (DTOs) and HTTP status codes (200 OK, 404 Not Found, etc.).
+    *   **Rule**: Controllers should *never* contain complex business logic or database queries.
+
+2.  **Business Layer (Service)**
+    *   **Responsibility**: Contains the core business logic of the application.
+    *   **What it does**:
+        *   Receives data from the Controller.
+        *   Performs calculations, validations, and rules (e.g., "Check if product stock is sufficient", "Calculate total price with tax").
+        *   Orchestrates data flow between multiple repositories (e.g., fetching User and Product details).
+        *   Transactional management (rolling back changes if an error occurs).
+    *   **Rule**: Services should be platform-agnostic (not tied to HTTP).
+
+3.  **Data Access Layer (Repository)**
+    *   **Responsibility**: Interacts directly with the database.
+    *   **What it does**:
+        *   Performs CRUD operations (Create, Read, Update, Delete).
+        *   Executes SQL queries or uses an ORM (like Hibernate/JPA).
+        *   Maps database rows to Application Entities.
+    *   **Rule**: Repositories should only care about data storage and retrieval, not business rules.
+
+---
+
+## 2. DTO vs Entity
+
+Understanding the difference between Data Transfer Objects (DTOs) and Entities is crucial for a clean architecture.
+
+### Entity
+*   **Definition**: Represents a table in your database. It is a persistent domain object.
+*   **Characteristics**:
+    *   Maps 1:1 to a database table.
+    *   Contains Primary Keys (IDs), relation mappings (`@OneToMany`), and metadata (created_at).
+    *   Used internally by Repositories and Services.
+*   **Risks**: Exposing Entities directly to the API can lead to:
+    *   **Security Issues**: Leaking sensitive data like `password_hash` or internal IDs.
+    *   **Tight Coupling**: Changing the database schema breaks the API contract.
+    *   **Infinite Recursion**: JSON serialization issues with circular dependencies (User -> Orders -> User).
+
+### DTO (Data Transfer Object)
+*   **Definition**: A plain object designed solely for transferring data between processes (e.g., Client <-> Server).
+*   **Characteristics**:
+    *   Tailored to a specific API endpoint's needs.
+    *   Contains only the data crucial for that request/response.
+    *   No behavior or business logic.
+*   **Benefits**:
+    *   Decouples the API from the Database.
+    *   Allows aggregating data from multiple sources.
+    *   Hides internal details.
+
+### Summary Comparison
+
+| Feature | Entity | DTO |
+| :--- | :--- | :--- |
+| **Purpose** | Map to DB table | Transfer data over API |
+| **Scope** | Internal (Service/Repo) | External (Controller/Client) |
+| **Changes** | Hard (Database migration) | Easy (Code change only) |
+| **Validation** | Data Integrity Constraints | Input Logic Validation (e.g., "Not Empty") |
+
+---
+
+## 3. Code Standards & Best Practices
+
+Consistent code standards ensure readability and maintainability.
+
+### Naming Conventions
+*   **Classes**: `PascalCase` (e.g., `OrderController`, `UserProfile`).
+*   **Methods/Variables**: `camelCase` (e.g., `calculateTotal`, `userId`).
+*   **Constants**: `UPPER_SNAKE_CASE` (e.g., `MAX_RETRY_COUNT`).
+*   **Boolean**: Prefix with `is`, `has`, or `can` (e.g., `isActive`, `hasPermission`).
+
+### Formatting & Structure
+*   **Package Structure**: Group by feature or layer.
+    ```text
+    com.app.order
+      ├── controller
+      ├── service
+      ├── repository
+      ├── entity
+      └── dto
+    ```
+*   **Clean Code**:
+    *   **DRY (Don't Repeat Yourself)**: Extract common logic into utility functions.
+    *   **Single Responsibility**: A method should do one thing well.
+    *   **Early Return**: Handle error cases first to avoid deep nesting.
+
+### Error Handling
+*   Use Global Exception Handlers (e.g., `@ControllerAdvice` in Spring) to return consistent JSON error responses.
+*   Never swallow exceptions (`catch (e) { }`). Always log them or re-throw custom exceptions.
+
+---
+
+## 4. End-to-End API Flow: Create Order
+
+This section traces a `Create Order` request through the system based on the flow you provided.
+
+### The Scenario
+A client (Frontend) sends a request to purchase a product.
+
+### The Flow Diagram
+
+```mermaid
+graph TD
+    Client((Client))
+    OrderController[OrderController]
+    OrderService[OrderService]
+    UserRepo[("UserRepo")]
+    ProductRepo[("ProductRepo")]
+    Database[("Database")]
+    OrderRepo[("OrderRepo")]
+
+    Client -- "1. POST /orders (OrderRequestDTO)" --> OrderController
+    OrderController -- "2. validate & call createOrder(DTO)" --> OrderService
+    
+    subgraph Service Layer Logic
+        OrderService -- "3. fetchUser(userId)" --> UserRepo
+        UserRepo -- "4. SELECT * FROM users..." --> Database
+        Database -- "5. Return User Entity" --> UserRepo
+        UserRepo -- "6. Return User Entity" --> OrderService
+
+        OrderService -- "7. fetchProduct(prodId)" --> ProductRepo
+        ProductRepo -- "8. SELECT * FROM products..." --> Database
+        Database -- "9. Return Product Entity" --> ProductRepo
+        ProductRepo -- "10. Return Product Entity" --> OrderService
+        
+        OrderService -- "11. Logic: Check Stock, Calc Price" --> OrderService
+        OrderService -- "12. Map Entities -> Order Entity" --> OrderService
+    end
+
+    OrderService -- "13. save(OrderEntity)" --> OrderRepo
+    OrderRepo -- "14. INSERT INTO orders..." --> Database
+    Database -- "15. Return Saved Row" --> OrderRepo
+    OrderRepo -- "16. Return Order Entity" --> OrderService
+
+    OrderService -- "17. Map Order Entity -> OrderResponseDTO" --> OrderService
+    OrderService -- "18. Return DTO" --> OrderController
+    OrderController -- "19. 201 Created + JSON" --> Client
+```
+
+### Detailed Trace
+
+1.  **Request (Client -> Controller)**
+    *   **Input**: JSON Body `{ "userId": 5, "productId": 102, "quantity": 2 }`
+    *   **Action**: `OrderController` receives the request. Framework automatically deserializes JSON into `OrderRequestDTO`.
+    *   **Validation**: Controller checks if `quantity > 0`. If valid, it calls `orderService.createOrder(dto)`.
+
+2.  **Processing (Service Layer)**
+    *   **Dependencies**: `OrderService` needs data to build a real `Order` object.
+    *   **Fetching**:
+        *   Calls `userRepo.findById(5)` to get the `User` Entity.
+        *   Calls `productRepo.findById(102)` to get the `Product` Entity.
+    *   **Business Logic**:
+        *   Checks `product.stock >= quantity`. (Throw exception if not).
+        *   Calculates `totalPrice = product.price * quantity`.
+    *   **Entity Creation**:
+        *   Creates a new `Order` Entity instance.
+        *   Sets relationships: `order.setUser(user)`, `order.setProduct(product)`.
+        *   Sets data: `order.setTotal(totalPrice)`, `order.setStatus("NEW")`.
+
+3.  **Persistence (Repository Layer)**
+    *   **Action**: Service calls `orderRepo.save(orderEntity)`.
+    *   **DB**: The framework generates an `INSERT` SQL statement and executes it in the Database.
+    *   **Return**: Database assigns an ID (e.g., `ID: 777`) and returns the specific record. Repository returns the fully populated `Order` Entity to the Service.
+
+4.  **Response (Service -> Controller -> Client)**
+    *   **Mapping**: Service must **not** return the Entity (to avoid leaking user password inside the User entity linked to the order).
+    *   **DTO Conversion**: Service creates an `OrderResponseDTO`.
+        *   `dto.setOrderId(777)`
+        *   `dto.setStatus("NEW")`
+        *   `dto.setTotal(totalPrice)`
+    *   **Return**: Service returns the `OrderResponseDTO` to the Controller.
+    *   **Final Output**: Controller wraps the DTO in a `ResponseEntity` with HTTP Status `201 Created` and sends it back to the Client.
