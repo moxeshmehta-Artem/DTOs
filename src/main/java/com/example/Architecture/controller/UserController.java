@@ -22,4 +22,19 @@ public class UserController {
         UserResponseDTO response = userService.createUser(request);
         return ResponseEntity.status(201).body(response);
     }
+
+    @org.springframework.web.bind.annotation.GetMapping
+    public java.util.List<UserResponseDTO> getAllUsers() {
+        return userService.getAllUsers();
+    }
+
+    @org.springframework.web.bind.annotation.GetMapping("/{id}")
+    public ResponseEntity<UserResponseDTO> getUserById(@org.springframework.web.bind.annotation.PathVariable Long id) {
+        UserResponseDTO response = userService.getUserById(id);
+        if (response != null) {
+            return ResponseEntity.ok(response);
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

@@ -21,4 +21,16 @@ public class UserService {
 
         return new UserResponseDTO(savedUser.getId(), savedUser.getName());
     }
+
+    public java.util.List<UserResponseDTO> getAllUsers() {
+        return userRepo.findAll().stream()
+                .map(user -> new UserResponseDTO(user.getId(), user.getName()))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    public UserResponseDTO getUserById(Long id) {
+        return userRepo.findById(id)
+                .map(user -> new UserResponseDTO(user.getId(), user.getName()))
+                .orElse(null);
+    }
 }

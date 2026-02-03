@@ -1,0 +1,55 @@
+# Implementation Plan - Database Concepts Learning
+
+This plan allows the user to learn by implementation.
+We will cover:
+1.  **Relationships**: Analyzing the logic connecting User, Order, and Product.
+2.  **JPQL**: Writing a Java-based query to find orders by user name.
+3.  **Native SQL**: Writing a raw SQL query to calculate total revenue.
+
+## Data Model (ER Diagram)
+The current relationship logic is:
+```mermaid
+erDiagram
+    USER ||--o{ ORDER : places
+    PRODUCT ||--o{ ORDER : contains
+    
+    USER {
+        long id PK
+        string name
+    }
+    ORDER {
+        long id PK
+        long user_id FK
+        long product_id FK
+        double total_price
+    }
+    PRODUCT {
+        long id PK
+        string name
+        double price
+    }
+```
+
+## Proposed Changes
+
+### Repository Custom Queries
+#### [MODIFY] [OrderRepository.java](file:///home/artem/Desktop/Backend/Architecture/src/main/java/com/example/Architecture/repository/OrderRepository.java)
+- **Concept: JPQL**
+    - Add `List<Order> findByUser_Name(String name);`
+    - Spring Data JPA automatically converts this to JPQL: `SELECT o FROM Order o WHERE o.user.name = :name`
+- **Concept: Native SQL**
+    - Add `@Query(value = "SELECT SUM(total_price) FROM orders", nativeQuery = true)`
+    - Add `Double calculateTotalRevenue();`
+
+### Controller Endpoints
+#### [MODIFY] [OrderController.java](file:///home/artem/Desktop/Backend/Architecture/src/main/java/com/example/Architecture/controller/OrderController.java)
+- Add `GET /api/orders/by-user?name=Moxesh`
+- Add `GET /api/orders/revenue`
+
+### Service Layer
+#### [MODIFY] [OrderService.java](file:///home/artem/Desktop/Backend/Architecture/src/main/java/com/example/Architecture/service/OrderService.java)
+- Expose the new repository methods.
+
+## Verification
+- **JPQL**: `curl "http://localhost:8080/api/orders/by-user?name=Moxesh"`
+- **Native**: `curl http://localhost:8080/api/orders/revenue`
