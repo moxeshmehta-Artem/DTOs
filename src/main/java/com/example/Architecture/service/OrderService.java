@@ -6,6 +6,7 @@ import com.example.Architecture.entity.*;
 import com.example.Architecture.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import java.util.List;
 
 @Service
 public class OrderService {
@@ -68,5 +69,61 @@ public class OrderService {
 
         public Double getTotalRevenue() {
                 return orderRepo.calculateTotalRevenue();
+        }
+
+        // ------------------- HQL Service Methods -------------------
+
+        public java.util.List<OrderResponseDTO> getOrdersByUserHQL(String name) {
+                return orderRepo.findOrdersByUserNameHQL(name).stream()
+                                .map(order -> new OrderResponseDTO(
+                                                order.getId(),
+                                                order.getStatus(),
+                                                order.getTotalPrice()))
+                                .collect(java.util.stream.Collectors.toList());
+        }
+
+        public java.util.List<Object[]> getOrderStatusCounts() {
+                return orderRepo.countOrdersByStatus();
+        }
+
+        public java.util.List<OrderResponseDTO> getExpensiveOrders(Double minPrice) {
+                return orderRepo.findExpensiveOrdersWithProduct(minPrice).stream()
+                                .map(order -> new OrderResponseDTO(
+                                                order.getId(),
+                                                order.getStatus(),
+                                                order.getTotalPrice()))
+                                .collect(java.util.stream.Collectors.toList());
+        }
+
+        public List<OrderResponseDTO> getOrdersByCondition(Double Price) {
+                return orderRepo.findOrdersByCondition(Price).stream()
+                                .map(order -> new OrderResponseDTO(
+                                                order.getId(),
+                                                order.getStatus(),
+                                                order.getTotalPrice()))
+                                .collect(java.util.stream.Collectors.toList());
+        }
+
+        // ------------------- EntityGraph Usage -------------------
+        public List<OrderResponseDTO> getOrdersByStatus(String status) {
+                // This calls the method annotated with @EntityGraph
+                List<Order> orders = orderRepo.findByStatus(status);
+
+                // Because "user" and "product" were fetched eagerly,
+                // calling getProduct() or getUser() here will NOT trigger new SQL queries.
+                return orders.stream()
+                                .map(order -> {
+                                        // Accessing related entities safely
+                                        String productName = order.getProduct().getName();
+                                        String userName = order.getUser().getName();
+
+                                        // For this example, we just return the standard DTO,
+                                        // but in a real app, you might map these names to a detailed DTO.
+                                        return new OrderResponseDTO(
+                                                        order.getId(),
+                                                        order.getStatus(),
+                                                        order.getTotalPrice());
+                                })
+                                .collect(java.util.stream.Collectors.toList());
         }
 }

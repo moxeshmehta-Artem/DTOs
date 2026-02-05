@@ -1,6 +1,7 @@
 package com.example.Architecture.repository;
 
 import com.example.Architecture.entity.Order;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -9,13 +10,47 @@ import java.util.List;
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
-    // JPQL Learning: Find orders by User's name
-    // Spring Data JPA derives this query automatically: SELECT o FROM Order o WHERE
-    // o.user.name = :name
+    // JPQL : Find orders by User's name
+  
     List<Order> findByUser_Name(String name);
 
     // Native SQL Learning: Calculate total revenue
-    // This executes raw SQL directly on the database
     @Query(value = "SELECT SUM(total_price) FROM orders", nativeQuery = true)
     Double calculateTotalRevenue();
+
+
+    // 1. Explicit Simple HQL
+    // Logic: Select Order entities where the associated user's name matches the
+    // parameter.
+    // Unlike finding by ID, this involves traversing the relationship to User.
+    @Query("SELECT o FROM Order o WHERE o.user.name = :name")
+    List<Order> findOrdersByUserNameHQL(String name);
+
+    // 2. HQL Aggregation (GROUP BY)
+    // Logic: Group orders by their status and count how many orders are in each
+    // status.f
+    // Returns a list of arrays where Object[0] is status (String) and Object[1] is
+    // count (Long).
+    @Query("SELECT o.status, COUNT(o) FROM Order o GROUP BY o.status")
+    List<Object[]> countOrdersByStatus();
+
+    // 3. HQL with JOIN FETCH (Optimization Logic)
+    // Logic: Find orders with total price > minPrice.
+    // 'JOIN FETCH' eagerly loads the 'product' association to avoid N+1 select
+    // problems
+    // when accessing the product details later.
+    @Query("SELECT o FROM Order o JOIN FETCH o.product WHERE o.totalPrice > :minPrice")
+    List<Order> findExpensiveOrdersWithProduct(Double minPrice);
+
+    @Query("SELECT o FROM Order o WHERE o.totalPrice > :price")
+    List<Order> findOrdersByCondition(Double price);
+
+    // 4. EntityGraph Example
+    // Logic: Fetch 'user' and 'product' eagerly without writing a custom JPQL
+    // query.
+    // This solves the N+1 problem by ensuring related entities are loaded in the
+    // same query.
+    // It's cleaner than JOIN FETCH when you rely on method naming conventions.
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = { "user", "product" })
+    List<Order> findByStatus(String status);
 }
