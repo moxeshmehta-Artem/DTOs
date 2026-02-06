@@ -6,25 +6,25 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import java.util.List;
+import com.example.Architecture.projection.OrderProjection;
 
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
     // JPQL : Find orders by User's name
-  
-    List<Order> findByUser_Name(String name);
+    // Spring Data Projection: Returns a lightweight Proxy (Interface) instead of
+    // the full Entity.
+    List<OrderProjection> findByUser_Name(String name);
 
     // Native SQL Learning: Calculate total revenue
     @Query(value = "SELECT SUM(total_price) FROM orders", nativeQuery = true)
     Double calculateTotalRevenue();
 
-
-    // 1. Explicit Simple HQL
-    // Logic: Select Order entities where the associated user's name matches the
-    // parameter.
-    // Unlike finding by ID, this involves traversing the relationship to User.
-    @Query("SELECT o FROM Order o WHERE o.user.name = :name")
-    List<Order> findOrdersByUserNameHQL(String name);
+    // 1. Explicit Simple HQL with Projection
+    // Logic: Select specific fields and construct the DTO immediately.
+    // This reduces data transfer by not fetching the entire entity.
+    @Query("SELECT new com.example.Architecture.dto.OrderResponseDTO(o.id, o.status, o.totalPrice) FROM Order o WHERE o.user.name = :name")
+    List<com.example.Architecture.dto.OrderResponseDTO> findOrdersByUserNameHQL(String name);
 
     // 2. HQL Aggregation (GROUP BY)
     // Logic: Group orders by their status and count how many orders are in each
@@ -45,12 +45,4 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT o FROM Order o WHERE o.totalPrice > :price")
     List<Order> findOrdersByCondition(Double price);
 
-    // 4. EntityGraph Example
-    // Logic: Fetch 'user' and 'product' eagerly without writing a custom JPQL
-    // query.
-    // This solves the N+1 problem by ensuring related entities are loaded in the
-    // same query.
-    // It's cleaner than JOIN FETCH when you rely on method naming conventions.
-    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = { "user", "product" })
-    List<Order> findByStatus(String status);
 }

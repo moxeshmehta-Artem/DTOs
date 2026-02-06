@@ -59,11 +59,12 @@ public class OrderService {
         }
 
         public java.util.List<OrderResponseDTO> getOrdersByUser(String name) {
+                // Using Interface Projection
                 return orderRepo.findByUser_Name(name).stream()
-                                .map(order -> new OrderResponseDTO(
-                                                order.getId(),
-                                                order.getStatus(),
-                                                order.getTotalPrice()))
+                                .map(proj -> new OrderResponseDTO(
+                                                proj.getId(),
+                                                proj.getStatus(),
+                                                proj.getTotalPrice()))
                                 .collect(java.util.stream.Collectors.toList());
         }
 
@@ -74,12 +75,8 @@ public class OrderService {
         // ------------------- HQL Service Methods -------------------
 
         public java.util.List<OrderResponseDTO> getOrdersByUserHQL(String name) {
-                return orderRepo.findOrdersByUserNameHQL(name).stream()
-                                .map(order -> new OrderResponseDTO(
-                                                order.getId(),
-                                                order.getStatus(),
-                                                order.getTotalPrice()))
-                                .collect(java.util.stream.Collectors.toList());
+                // The repository now returns DTOs directly via Projection!
+                return orderRepo.findOrdersByUserNameHQL(name);
         }
 
         public java.util.List<Object[]> getOrderStatusCounts() {
@@ -101,29 +98,7 @@ public class OrderService {
                                                 order.getId(),
                                                 order.getStatus(),
                                                 order.getTotalPrice()))
-                                .collect(java.util.stream.Collectors.toList());
+                                .toList();
         }
 
-        // ------------------- EntityGraph Usage -------------------
-        public List<OrderResponseDTO> getOrdersByStatus(String status) {
-                // This calls the method annotated with @EntityGraph
-                List<Order> orders = orderRepo.findByStatus(status);
-
-                // Because "user" and "product" were fetched eagerly,
-                // calling getProduct() or getUser() here will NOT trigger new SQL queries.
-                return orders.stream()
-                                .map(order -> {
-                                        // Accessing related entities safely
-                                        String productName = order.getProduct().getName();
-                                        String userName = order.getUser().getName();
-
-                                        // For this example, we just return the standard DTO,
-                                        // but in a real app, you might map these names to a detailed DTO.
-                                        return new OrderResponseDTO(
-                                                        order.getId(),
-                                                        order.getStatus(),
-                                                        order.getTotalPrice());
-                                })
-                                .collect(java.util.stream.Collectors.toList());
-        }
 }
