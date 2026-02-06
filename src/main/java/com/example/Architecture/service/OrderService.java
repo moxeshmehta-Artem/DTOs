@@ -83,14 +83,7 @@ public class OrderService {
                 return orderRepo.countOrdersByStatus();
         }
 
-        public java.util.List<OrderResponseDTO> getExpensiveOrders(Double minPrice) {
-                return orderRepo.findExpensiveOrdersWithProduct(minPrice).stream()
-                                .map(order -> new OrderResponseDTO(
-                                                order.getId(),
-                                                order.getStatus(),
-                                                order.getTotalPrice()))
-                                .collect(java.util.stream.Collectors.toList());
-        }
+
 
         public List<OrderResponseDTO> getOrdersByCondition(Double Price) {
                 return orderRepo.findOrdersByCondition(Price).stream()

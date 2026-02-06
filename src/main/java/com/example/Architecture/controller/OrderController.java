@@ -49,10 +49,7 @@ public class OrderController {
         return orderService.getOrderStatusCounts();
     }
 
-    @GetMapping("/hql/expensive/{minPrice}")
-    public List<OrderResponseDTO> getExpensiveOrders(@PathVariable Double minPrice) {
-        return orderService.getExpensiveOrders(minPrice);
-    }
+
 
     @GetMapping("/hql/condition/{price}")
     public List<OrderResponseDTO> getOrdersByCondition(@PathVariable Double price) {

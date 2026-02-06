@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 import java.util.List;
+
 import com.example.Architecture.projection.OrderProjection;
 
 @Repository
@@ -39,8 +40,7 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     // 'JOIN FETCH' eagerly loads the 'product' association to avoid N+1 select
     // problems
     // when accessing the product details later.
-    @Query("SELECT o FROM Order o JOIN FETCH o.product WHERE o.totalPrice > :minPrice")
-    List<Order> findExpensiveOrdersWithProduct(Double minPrice);
+  
 
     @Query("SELECT o FROM Order o WHERE o.totalPrice > :price")
     List<Order> findOrdersByCondition(Double price);
